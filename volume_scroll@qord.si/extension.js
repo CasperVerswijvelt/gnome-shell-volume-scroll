@@ -13,11 +13,13 @@ const VOL_ICONS = [
 let panel,
     panelBinding,
     volumeControl,
+    streamSlider,
     volumeStep;
 
 function init() {
   volumeControl = Volume.getMixerControl();
-  volumeStep = 500;
+  streamSlider = new Volume.StreamSlider(volumeControl);
+  volumeStep = _getVolumeMax() / 40;
 
   panel = Main.panel;
   panelBinding = null;
@@ -42,9 +44,13 @@ function disable() {
  * Returns the max volume.
  */
 function _getVolumeMax() {
-  return volumeControl.get_vol_max_norm();
-  //return volumeControl.get_vol_max_amplified();  // boost volume (150%)
+  return volumeControl.get_vol_max_norm(); // Should be just 1
 }
+
+function _getVolumeAbsoluteMax() {
+  return streamSlider.getMaxLevel() * _getVolumeMax(); // If volume boost enabled, this will be higher
+}
+
 
 /**
  * Handles panel mouse scroll event.
@@ -63,8 +69,8 @@ function _onScroll(actor, event) {
       return Clutter.EVENT_PROPAGATE;
   }
 
-  if (volume > _getVolumeMax()) {
-    volume = _getVolumeMax();
+  if (volume > _getVolumeAbsoluteMax()) {
+    volume = _getVolumeAbsoluteMax();
   }
   else if (volume < volumeStep) {
     volume = 0;
@@ -73,7 +79,7 @@ function _onScroll(actor, event) {
   volumeControl.get_default_sink().volume = volume;
   volumeControl.get_default_sink().push_volume();
 
-  _showVolumeOsd(volume, volume/_getVolumeMax() * 100);
+  _showVolumeOsd(volume, _getVolumeMax(), _getVolumeAbsoluteMax());
 
   return Clutter.EVENT_STOP;
 }
@@ -83,19 +89,23 @@ function _onScroll(actor, event) {
  *
  * @see gsd-media-keys-manager.c
  */
-function _showVolumeOsd (level, percent) {
+function _showVolumeOsd (level, maxLevel, absoluteMaxLevel) {
   let monitor = -1;
   let n;
+  let percent = level / maxLevel;
+  let maxPercent = absoluteMaxLevel / maxLevel;
 
-  if (level === 0) {
+  if (percent === 0) {
       n = 0;
+  } else if (percent < 0.33) {
+      n = 1
   } else {
-      n = parseInt(3 * percent / 100 + 1);
-      n = Math.max(1, n);
-      n = Math.min(3, n);
+      n = Math.min(Math.round(percent * 3), 3)
   }
 
   let icon = Gio.Icon.new_for_string(VOL_ICONS[n]);
 
-  Main.osdWindowManager.show(monitor, icon, null, percent);
+  global.log(level, maxLevel, absoluteMaxLevel, percent, maxPercent)
+
+  Main.osdWindowManager.show(monitor, icon, null, percent, maxPercent);
 }
