@@ -8,7 +8,7 @@ Works on Gnome 3.22.3. Haven't checked for older or newer versions.
 
 Possible TODOs
 ---------------
-Settings menu supporting custom volume step and option to use boost volume (150%).
+Settings menu supporting custom volume step
 
 Acknowledgments
 ---------------
