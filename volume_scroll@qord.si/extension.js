@@ -1,20 +1,10 @@
 const Main = imports.ui.main;
 const Clutter = imports.gi.Clutter;
 const Volume = imports.ui.status.volume;
+const PanelMenu = imports.ui.panelMenu;
 const Gio = imports.gi.Gio;
 
-const VOL_ICONS = [
-    'audio-volume-muted-symbolic',
-    'audio-volume-low-symbolic',
-    'audio-volume-medium-symbolic',
-    'audio-volume-high-symbolic'
-];
-
-let panel,
-    panelBinding,
-    volumeControl,
-    streamSlider,
-    volumeStep;
+let panel, panelBinding, volumeControl, volumeStep, aggregateMenu, volumeMenu;
 
 function init() {
   volumeControl = Volume.getMixerControl();
@@ -26,6 +16,15 @@ function init() {
 }
 
 function enable() {
+  aggregateMenu = Main.panel.statusArea.aggregateMenu;
+
+  if (
+    aggregateMenu.hasOwnProperty("_volume") &&
+    aggregateMenu._volume instanceof PanelMenu.SystemIndicator
+  ) {
+    volumeMenu = aggregateMenu._volume._volumeMenu;
+  }
+
   panel.reactive = true;
   if (panelBinding) {
     disable();
@@ -58,7 +57,7 @@ function _getVolumeAbsoluteMax() {
 function _onScroll(actor, event) {
   let volume = volumeControl.get_default_sink().volume;
 
-  switch(event.get_scroll_direction()) {
+  switch (event.get_scroll_direction()) {
     case Clutter.ScrollDirection.UP:
       volume += volumeStep;
       break;
@@ -71,8 +70,7 @@ function _onScroll(actor, event) {
 
   if (volume > _getVolumeAbsoluteMax()) {
     volume = _getVolumeAbsoluteMax();
-  }
-  else if (volume < volumeStep) {
+  } else if (volume < volumeStep) {
     volume = 0;
   }
 
@@ -89,23 +87,9 @@ function _onScroll(actor, event) {
  *
  * @see gsd-media-keys-manager.c
  */
-function _showVolumeOsd (level, maxLevel, absoluteMaxLevel) {
-  let monitor = -1;
-  let n;
-  let percent = level / maxLevel;
-  let maxPercent = absoluteMaxLevel / maxLevel;
-
-  if (percent === 0) {
-      n = 0;
-  } else if (percent < 0.33) {
-      n = 1
-  } else {
-      n = Math.min(Math.round(percent * 3), 3)
-  }
-
-  let icon = Gio.Icon.new_for_string(VOL_ICONS[n]);
-
-  global.log(level, maxLevel, absoluteMaxLevel, percent, maxPercent)
-
-  Main.osdWindowManager.show(monitor, icon, null, percent, maxPercent);
+function _showVolumeOsd() {
+  let gicon = new Gio.ThemedIcon({ name: volumeMenu.getIcon() });
+  let level = volumeMenu.getLevel();
+  let maxLevel = volumeMenu.getMaxLevel();
+  Main.osdWindowManager.show(-1, gicon, null, level, maxLevel);
 }
